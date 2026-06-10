@@ -752,6 +752,45 @@
     .table-head, .table-row { grid-template-columns: 32px 1fr 80px 120px 80px; }
     .table-head > *:nth-child(5), .table-row > *:nth-child(5) { display: none; }
   }
+
+  textarea.form-input {
+    resize: none;
+    overflow: hidden;
+    min-height: 78px;
+    line-height: 1.45;
+  }
+
+
+  .delete-warning-box {
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .delete-warning-box strong {
+    color: var(--red);
+    display: block;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .delete-product-preview {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 15px;
+    margin-bottom: 18px;
+  }
+  .delete-product-preview span {
+    display: block;
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-top: 3px;
+  }
+
 </style>
 </head>
 <body>
@@ -991,6 +1030,16 @@
             </div>
           </div>
         </div>
+        <div class="detail-actions">
+          <button type="button" class="btn btn-ghost" onclick="openEditProductModal()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="1.8" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path stroke-linecap="round" stroke-width="1.8" d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Editar cadastro
+          </button>
+          <button type="button" class="btn btn-danger" onclick="openDeleteProductModal()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="1.8" d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0l-1 14a2 2 0 01-2 2H6a2 2 0 01-2-2L3 6"/><path stroke-linecap="round" stroke-width="1.8" d="M10 11v6m4-6v6"/></svg>
+            Excluir
+          </button>
+        </div>
       </div>
 
       <div class="detail-cards">
@@ -1174,6 +1223,88 @@
 </div>
 
 
+<!-- ── MODAL: EDITAR CADASTRO DO PRODUTO ── -->
+<div class="modal-overlay" id="modal-edit-product">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h2>Editar Cadastro do Produto</h2>
+        <p>Altere as informações principais do produto.</p>
+      </div>
+      <div class="close-btn" onclick="closeEditProductModal()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Nome</label>
+      <input class="form-input" id="edit-prod-name" placeholder="Nome do produto" type="text">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">SKU</label>
+      <input class="form-input" id="edit-prod-sku" placeholder="Código/SKU" type="text">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Tipo do produto</label>
+      <div class="checkbox-grid">
+        <label class="check-card" id="edit-card-unitario" onclick="selectEditProductKind('unitario')">
+          <input type="checkbox" id="edit-prod-unitario">
+          <div>
+            <strong>Unitário</strong>
+            <span>Produto vendido como uma única unidade.</span>
+          </div>
+        </label>
+        <label class="check-card" id="edit-card-kit" onclick="selectEditProductKind('kit')">
+          <input type="checkbox" id="edit-prod-kit">
+          <div>
+            <strong>KIT</strong>
+            <span>Produto composto por mais de um item vinculado ao mesmo SKU.</span>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeEditProductModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEditedProduct()">Salvar Alterações</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── MODAL: CONFIRMAR EXCLUSÃO DO PRODUTO ── -->
+<div class="modal-overlay" id="modal-delete-product">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h2>Excluir Cadastro</h2>
+        <p>Confirme a exclusão do produto selecionado</p>
+      </div>
+      <div class="close-btn" onclick="closeDeleteProductModal()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </div>
+    </div>
+
+    <div class="delete-warning-box">
+      <strong>Atenção: esta ação não poderá ser desfeita.</strong>
+      Ao excluir este cadastro, o produto será removido do estoque e todo o histórico de movimentações vinculado a ele também será apagado.
+    </div>
+
+    <div class="delete-product-preview">
+      <strong id="delete-product-name">Produto</strong>
+      <span>SKU: <span id="delete-product-sku">—</span></span>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeDeleteProductModal()">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmDeleteProduct()">Excluir Cadastro</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- ── MODAL: MOVIMENTAÇÃO DO PRODUTO ── -->
 <div class="modal-overlay detail-mov-modal" id="modal-prod-mov">
   <div class="modal">
@@ -1206,10 +1337,10 @@
       <input class="form-input" id="prod-mov-qty" placeholder="1" value="1" type="number" min="1">
     </div>
 
-    <div class="form-group">
+    <div class="form-group" id="prod-cost-field">
       <label class="form-label">Custo Unitário <span style="color:var(--red)">*</span></label>
       <div class="form-prefix">
-        <span>$</span>
+        <span>R$</span>
         <input id="prod-mov-cost" placeholder="0,00" type="text" inputmode="numeric">
       </div>
     </div>
@@ -1221,7 +1352,7 @@
 
     <div class="form-group">
       <label class="form-label">Observações (opcional)</label>
-      <textarea class="form-input" id="prod-mov-notes" placeholder="Detalhes adicionais..." rows="3"></textarea>
+      <textarea class="form-input" id="prod-mov-notes" placeholder="Detalhes adicionais..." rows="3" oninput="autoResizeTextarea(this)"></textarea>
     </div>
 
     <div class="modal-footer">
@@ -1307,6 +1438,7 @@ let currentProductId = null;
 let detailMovFilter = 'todos';
 let detailMovType = 'entrada';
 let productKind = 'unitario';
+let editProductKind = 'unitario';
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
 function navigate(page) {
@@ -1604,8 +1736,27 @@ function openProductDetail(skuId) {
   navigate('produto-detalhe');
 }
 
+function idsMatch(a, b) {
+  return String(a) === String(b);
+}
+
 function getCurrentSku() {
-  return loadSkus().find(s => s.id === currentProductId);
+  const skus = loadSkus();
+
+  // Primeiro tenta encontrar pelo ID salvo ao abrir a tela de detalhe.
+  let sku = skus.find(s => idsMatch(s.id, currentProductId));
+  if (sku) return sku;
+
+  // Plano B: caso o ID tenha se perdido, encontra pelo SKU exibido na tela.
+  const detailSkuEl = document.getElementById('detail-sku');
+  const codeOnScreen = detailSkuEl ? detailSkuEl.textContent.trim() : '';
+  sku = skus.find(s => (s.code || '').trim() === codeOnScreen);
+  if (sku) {
+    currentProductId = sku.id;
+    return sku;
+  }
+
+  return null;
 }
 
 function renderProductDetail() {
@@ -1624,7 +1775,8 @@ function renderProductDetail() {
   document.getElementById('detail-kind').textContent = (sku.kind === 'kit') ? 'KIT' : 'Unitário';
   document.getElementById('detail-qty-pill').textContent = `${sku.qty} unidades`;
   document.getElementById('detail-stock-value-pill').textContent = `${fmt(stockValue)} em estoque`;
-  document.getElementById('detail-ads-pill').textContent = `${sku.ads || 0} anúncio${(sku.ads || 0) === 1 ? '' : 's'}`;
+  const detailAdsPill = document.getElementById('detail-ads-pill');
+  if (detailAdsPill) detailAdsPill.textContent = `${sku.ads || 0} anúncio${(sku.ads || 0) === 1 ? '' : 's'}`;
   document.getElementById('detail-average-cost').textContent = fmt(sku.cost || 0);
   const optionalDetailValues = {
     'detail-package-cost': fmt(sku.packageCost || 0),
@@ -1697,6 +1849,71 @@ function renderDetailCosts(entradas) {
   `).join('');
 }
 
+
+function selectEditProductKind(kind) {
+  editProductKind = kind;
+  const isUnit = kind === 'unitario';
+  document.getElementById('edit-prod-unitario').checked = isUnit;
+  document.getElementById('edit-prod-kit').checked = !isUnit;
+  document.getElementById('edit-card-unitario').classList.toggle('selected', isUnit);
+  document.getElementById('edit-card-kit').classList.toggle('selected', !isUnit);
+}
+
+function openEditProductModal() {
+  const sku = getCurrentSku();
+  if (!sku) return;
+  document.getElementById('edit-prod-name').value = sku.name || '';
+  document.getElementById('edit-prod-sku').value = sku.code || '';
+  selectEditProductKind(sku.kind === 'kit' ? 'kit' : 'unitario');
+  document.getElementById('modal-edit-product').classList.add('open');
+}
+
+function closeEditProductModal() {
+  document.getElementById('modal-edit-product').classList.remove('open');
+}
+
+function saveEditedProduct() {
+  const name = document.getElementById('edit-prod-name').value.trim();
+  const code = document.getElementById('edit-prod-sku').value.trim();
+
+  if (!name || !code) {
+    alert('Nome e SKU são obrigatórios.');
+    return;
+  }
+
+  const skus = loadSkus();
+  const idx = skus.findIndex(s => idsMatch(s.id, currentProductId));
+  if (idx === -1) {
+    alert('Produto não encontrado.');
+    return;
+  }
+
+  const duplicatedSku = skus.find(s => !idsMatch(s.id, currentProductId) && (s.code || '').toLowerCase() === code.toLowerCase());
+  if (duplicatedSku) {
+    alert('Já existe outro produto com este SKU.');
+    return;
+  }
+
+  skus[idx].name = name;
+  skus[idx].code = code;
+  skus[idx].kind = editProductKind;
+  skus[idx].emoji = editProductKind === 'kit' ? '🧩' : (skus[idx].emoji || '📦');
+  saveSkus(skus);
+
+  const movs = loadMovs().map(m => {
+    if (idsMatch(m.skuId, currentProductId)) return { ...m, skuName: name };
+    return m;
+  });
+  saveMovs(movs);
+
+  closeEditProductModal();
+  renderProductDetail();
+  renderKpis();
+  renderTable();
+  renderDashboard();
+}
+
+
 function setDetailMovFilter(filter) {
   detailMovFilter = filter;
   renderProductDetail();
@@ -1711,7 +1928,7 @@ function selectDetailTab(tab) {
 
 function toggleDetailSync() {
   const skus = loadSkus();
-  const idx = skus.findIndex(s => s.id === currentProductId);
+  const idx = skus.findIndex(s => idsMatch(s.id, currentProductId));
   if (idx === -1) return;
   skus[idx].sync = !skus[idx].sync;
   saveSkus(skus);
@@ -1726,7 +1943,7 @@ function resetAverageCost() {
   const newCost = parseFloat(String(value).replace(',', '.'));
   if (isNaN(newCost) || newCost < 0) { alert('Informe um valor válido.'); return; }
   const skus = loadSkus();
-  const idx = skus.findIndex(s => s.id === currentProductId);
+  const idx = skus.findIndex(s => idsMatch(s.id, currentProductId));
   skus[idx].cost = newCost;
   saveSkus(skus);
   renderProductDetail();
@@ -1734,19 +1951,47 @@ function resetAverageCost() {
   renderTable();
 }
 
+function formatMoneyInputValue(value) {
+  return Number(value || 0).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function parseMoneyInputValue(value) {
+  const normalized = String(value || '')
+    .replace(/\s/g, '')
+    .replace(/\./g, '')
+    .replace(',', '.');
+
+  const parsed = parseFloat(normalized);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 function selectDetailMovType(type) {
   detailMovType = type;
   document.getElementById('prod-type-entrada').classList.toggle('selected', type === 'entrada');
   document.getElementById('prod-type-saida').classList.toggle('selected', type === 'saida');
-  const sku = getCurrentSku();
-  if (sku) document.getElementById('prod-mov-cost').value = (sku.cost || 0).toFixed(2);
+
+  const costField = document.getElementById('prod-cost-field');
+  const costInput = document.getElementById('prod-mov-cost');
+
+  if (type === 'saida') {
+    costField.style.display = 'none';
+    costInput.value = '';
+  } else {
+    costField.style.display = '';
+    const sku = getCurrentSku();
+    if (sku) costInput.value = formatMoneyInputValue(sku.cost || 0);
+  }
 }
 
 function openDetailMovModal() {
+  setTimeout(() => autoResizeTextarea(document.getElementById('prod-mov-notes')), 0);
   const sku = getCurrentSku();
   if (!sku) return;
   document.getElementById('prod-mov-qty').value = 1;
-  document.getElementById('prod-mov-cost').value = (sku.cost || 0).toFixed(2);
+  document.getElementById('prod-mov-cost').value = formatMoneyInputValue(sku.cost || 0);
   document.getElementById('prod-mov-reason').value = '';
   document.getElementById('prod-mov-notes').value = '';
   selectDetailMovType('entrada');
@@ -1763,7 +2008,7 @@ function saveDetailMovimentacao() {
   if (!sku) { alert('Produto não encontrado.'); return; }
 
   const cost = detailMovType === 'entrada'
-    ? (parseFloat(document.getElementById('prod-mov-cost').value) || Number(sku.cost) || 0)
+    ? (parseMoneyInputValue(document.getElementById('prod-mov-cost').value) || Number(sku.cost) || 0)
     : (Number(sku.cost) || 0);
   const reason = document.getElementById('prod-mov-reason').value.trim();
   const notes = document.getElementById('prod-mov-notes').value.trim();
@@ -1930,6 +2175,112 @@ if (prodMovCostInput) {
       maximumFractionDigits: 2
     });
   });
+}
+
+
+window.deleteCurrentProduct = deleteCurrentProduct;
+window.openEditProductModal = openEditProductModal;
+
+function autoResizeTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+document.addEventListener('input', function (event) {
+  if (event.target && event.target.matches('textarea.form-input')) {
+    autoResizeTextarea(event.target);
+  }
+});
+
+
+// Compatibilidade com possíveis chamadas antigas
+
+
+
+function getCurrentProductForDelete() {
+  const skus = loadSkus();
+
+  if (currentProductId !== null && currentProductId !== undefined && currentProductId !== '') {
+    const foundByCurrentId = skus.find(s => String(s.id) === String(currentProductId));
+    if (foundByCurrentId) return foundByCurrentId;
+  }
+
+  const skuFromDetail = document.getElementById('detail-sku');
+  if (skuFromDetail) {
+    const code = skuFromDetail.textContent.trim();
+    const foundByCode = skus.find(s => String(s.code).trim() === code);
+    if (foundByCode) {
+      currentProductId = foundByCode.id;
+      return foundByCode;
+    }
+  }
+
+  return null;
+}
+
+function openDeleteProductModal() {
+  const sku = getCurrentProductForDelete();
+
+  if (!sku) {
+    alert('Produto não encontrado para exclusão.');
+    return;
+  }
+
+  const nameEl = document.getElementById('delete-product-name');
+  const skuEl = document.getElementById('delete-product-sku');
+
+  if (nameEl) nameEl.textContent = sku.name || 'Produto';
+  if (skuEl) skuEl.textContent = sku.code || '—';
+
+  const modal = document.getElementById('modal-delete-product');
+  if (modal) modal.classList.add('open');
+}
+
+function closeDeleteProductModal() {
+  const modal = document.getElementById('modal-delete-product');
+  if (modal) modal.classList.remove('open');
+}
+
+function confirmDeleteProduct() {
+  const sku = getCurrentProductForDelete();
+
+  if (!sku) {
+    closeDeleteProductModal();
+    alert('Produto não encontrado para exclusão.');
+    return;
+  }
+
+  const idToDelete = String(sku.id);
+
+  const updatedSkus = loadSkus().filter(s => String(s.id) !== idToDelete);
+  const updatedMovs = loadMovs().filter(m => String(m.skuId) !== idToDelete);
+
+  saveSkus(updatedSkus);
+  saveMovs(updatedMovs);
+
+  currentProductId = null;
+
+  closeDeleteProductModal();
+
+  if (typeof renderKpis === 'function') renderKpis();
+  if (typeof renderTable === 'function') renderTable();
+  if (typeof renderDashboard === 'function') renderDashboard();
+
+  navigate('estoque');
+}
+
+// Compatibilidade com chamadas antigas
+function deleteCurrentProduct() {
+  openDeleteProductModal();
+}
+
+function deleteProduct() {
+  openDeleteProductModal();
+}
+
+function excluirProduto() {
+  openDeleteProductModal();
 }
 
 </script>
