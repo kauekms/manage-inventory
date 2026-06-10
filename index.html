@@ -939,10 +939,6 @@
           <p>Gerencie seus SKUs e controle de estoque</p>
         </div>
         <div class="page-actions">
-          <button class="btn btn-ghost" onclick="openModal('mov')">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="1.8" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
-            Adicionar Movimentação
-          </button>
           <button class="btn btn-primary" onclick="navigate('cadastro-produto')">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Cadastrar Produto
@@ -1042,9 +1038,9 @@
         </div>
       </div>
 
-      <div class="detail-cards">
+      <div class="detail-cards" style="grid-template-columns: repeat(1, 1fr); max-width: 260px;">
         <div class="detail-card">
-          <div class="detail-card-label"><span>Custo Médio ⓘ</span><span>$</span></div>
+          <div class="detail-card-label"><span>Custo p/ Unid ⓘ</span><span>$</span></div>
           <div class="detail-card-value" id="detail-average-cost">R$ 0,00</div>
         </div>
       </div>
@@ -1180,7 +1176,7 @@
         <label class="form-label">Custo por Unidade</label>
         <div class="form-prefix">
         <span>R$</span>
-        <input id="prod-mov-cost" placeholder="0,00" type="text" inputmode="numeric">
+        <input id="mov-cost" placeholder="0,00" type="text" inputmode="numeric">
       </div>
         <p class="form-hint">Deixe em branco para usar o custo cadastrado</p>
       </div>
@@ -1400,10 +1396,11 @@ function createMovementForSku({ skuId, type, qty, cost = 0, note = '', notes = '
   const previousCost = currentCost;
 
   if (type === 'entrada') {
-    const prevTotal = currentQty * currentCost;
-    const newTotal = movementQty * movementCost;
     skus[idx].qty = currentQty + movementQty;
-    skus[idx].cost = skus[idx].qty > 0 ? (prevTotal + newTotal) / skus[idx].qty : movementCost;
+    // Atualiza o custo p/ unid somente se o valor da entrada for diferente do atual
+    if (movementCost !== currentCost) {
+      skus[idx].cost = movementCost;
+    }
   } else {
     skus[idx].qty = currentQty - movementQty;
     skus[idx].cost = currentCost;
@@ -1617,7 +1614,7 @@ function updateMovSummary() {
 
   if (!sku || !qty) { box.style.display = 'none'; return; }
 
-  const cost = parseFloat(document.getElementById('mov-cost').value) || sku.cost;
+  const cost = parseMoneyInputValue(document.getElementById('mov-cost').value) || sku.cost;
   const after = currentType === 'entrada' ? sku.qty + qty : sku.qty - qty;
 
   document.getElementById('sum-product').textContent = sku.name;
@@ -1649,7 +1646,7 @@ function saveMovimentacao() {
   if (!sku) { alert('Produto não encontrado.'); return; }
 
   const cost = currentType === 'entrada'
-    ? (parseFloat(document.getElementById('mov-cost').value) || Number(sku.cost) || 0)
+    ? (parseMoneyInputValue(document.getElementById('mov-cost').value) || Number(sku.cost) || 0)
     : (Number(sku.cost) || 0);
 
   const result = createMovementForSku({
@@ -1814,19 +1811,28 @@ function renderDetailMovements(movs) {
   }
 
   box.classList.add('has-items');
-  box.innerHTML = filtered.map(m => `
+  box.innerHTML = filtered.map(m => {
+    const isEntrada = m.type === 'entrada';
+    const metaParts = [fmtDate(m.date)];
+    if (isEntrada) metaParts.push('Entrada de estoque');
+    else metaParts.push('Saída de estoque');
+    if (m.note && m.note !== 'Entrada de estoque' && m.note !== 'Saída de estoque') metaParts.push(m.note);
+    if (m.notes) metaParts.push(m.notes);
+    if (m.qtyAfter !== undefined) metaParts.push(`Estoque após: ${m.qtyAfter} un`);
+    if (isEntrada && m.cost) metaParts.push(`Custo p/ Unid: ${fmt(m.cost)}`);
+
+    return `
     <div class="detail-mov-row">
-      <div class="mov-badge ${m.type === 'entrada' ? 'in' : 'out'}">${m.type === 'entrada' ? '📦' : '🚚'}</div>
+      <div class="mov-badge ${isEntrada ? 'in' : 'out'}">${isEntrada ? '📦' : '🚚'}</div>
       <div class="detail-mov-info">
-        <strong>${m.type === 'entrada' ? 'Entrada' : 'Saída'} de ${m.qty} unidade${m.qty === 1 ? '' : 's'}</strong>
-        <span>${fmtDate(m.date)}${m.note ? ' · ' + m.note : ''}${m.notes ? ' · ' + m.notes : ''}${m.qtyAfter !== undefined ? ' · Estoque após: ' + m.qtyAfter + ' un' : ''}</span>
+        <strong>${isEntrada ? 'Entrada' : 'Saída'} de ${m.qty} unidade${m.qty === 1 ? '' : 's'}</strong>
+        <span>${metaParts.join(' · ')}</span>
       </div>
       <div style="text-align:right">
-        <div class="mov-qty ${m.type === 'entrada' ? 'in' : 'out'}">${m.type === 'entrada' ? '+' : '-'}${m.qty}</div>
-        <div class="mov-date">${fmtDate(m.date)}</div>
+        <div class="mov-qty ${isEntrada ? 'in' : 'out'}">${isEntrada ? '+' : '-'}${m.qty}</div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderDetailCosts(entradas) {
@@ -1837,16 +1843,22 @@ function renderDetailCosts(entradas) {
     return;
   }
   box.classList.add('has-items');
-  box.innerHTML = entradas.map(m => `
+  box.innerHTML = entradas.map((m, i) => {
+    const prevCost = m.previousCost !== undefined ? m.previousCost : null;
+    const costChanged = prevCost !== null && prevCost !== m.cost;
+    const changeLabel = costChanged
+      ? `<span style="color:var(--text-dim);font-size:11px"> (anterior: ${fmt(prevCost)})</span>`
+      : '';
+    return `
     <div class="detail-mov-row">
       <div class="mov-badge in">$</div>
       <div class="detail-mov-info">
-        <strong>${fmt(m.cost || 0)} / unidade</strong>
-        <span>${m.note || 'Entrada de estoque'} · ${m.qty} unidade${m.qty === 1 ? '' : 's'}</span>
+        <strong>${fmt(m.cost || 0)} / unidade${costChanged ? ' ↑' : ''}</strong>
+        <span>${fmtDate(m.date)} · ${m.qty} unidade${m.qty === 1 ? '' : 's'} entrada${m.qtyAfter !== undefined ? ' · Estoque após: ' + m.qtyAfter + ' un' : ''}</span>
       </div>
-      <div class="mov-date">${fmtDate(m.date)}</div>
-    </div>
-  `).join('');
+      <div style="text-align:right;font-size:12px;color:var(--text-muted)">${costChanged ? fmt(prevCost) + ' → ' + fmt(m.cost) : fmt(m.cost)}</div>
+    </div>`;
+  }).join('');
 }
 
 
@@ -2164,12 +2176,19 @@ const prodMovCostInput = document.getElementById('prod-mov-cost');
 if (prodMovCostInput) {
   prodMovCostInput.addEventListener('input', function () {
     let value = this.value.replace(/\D/g, '');
+    if (!value) { this.value = ''; return; }
+    this.value = (parseInt(value, 10) / 100).toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  });
+}
 
-    if (!value) {
-      this.value = '';
-      return;
-    }
-
+const movCostInput = document.getElementById('mov-cost');
+if (movCostInput) {
+  movCostInput.addEventListener('input', function () {
+    let value = this.value.replace(/\D/g, '');
+    if (!value) { this.value = ''; return; }
     this.value = (parseInt(value, 10) / 100).toLocaleString('pt-BR', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
