@@ -1251,6 +1251,63 @@ function loadMovs() {
 }
 function saveMovs(data) { localStorage.setItem(KEY_MOVS, JSON.stringify(data)); }
 
+
+function createMovementForSku({ skuId, type, qty, cost = 0, note = '', notes = '' }) {
+  const skus = loadSkus();
+  const idx = skus.findIndex(s => s.id === skuId);
+  if (idx === -1) return { ok: false, message: 'Produto não encontrado.' };
+
+  const currentQty = Number(skus[idx].qty) || 0;
+  const currentCost = Number(skus[idx].cost) || 0;
+  const movementQty = Number(qty) || 0;
+  const movementCost = Number(cost) || currentCost;
+
+  if (!movementQty || movementQty < 1) {
+    return { ok: false, message: 'Informe uma quantidade válida.' };
+  }
+
+  if (type === 'saida' && currentQty < movementQty) {
+    return { ok: false, message: `Estoque insuficiente! Disponível: ${currentQty} unidades.` };
+  }
+
+  const now = new Date();
+  const previousQty = currentQty;
+  const previousCost = currentCost;
+
+  if (type === 'entrada') {
+    const prevTotal = currentQty * currentCost;
+    const newTotal = movementQty * movementCost;
+    skus[idx].qty = currentQty + movementQty;
+    skus[idx].cost = skus[idx].qty > 0 ? (prevTotal + newTotal) / skus[idx].qty : movementCost;
+  } else {
+    skus[idx].qty = currentQty - movementQty;
+    skus[idx].cost = currentCost;
+  }
+
+  saveSkus(skus);
+
+  const movs = loadMovs();
+  movs.unshift({
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    skuId: skus[idx].id,
+    skuName: skus[idx].name,
+    type,
+    qty: movementQty,
+    cost: movementCost,
+    note,
+    notes,
+    date: now.toISOString(),
+    createdAt: now.toISOString(),
+    previousQty,
+    qtyAfter: skus[idx].qty,
+    previousCost,
+    averageCostAfter: skus[idx].cost
+  });
+  saveMovs(movs);
+
+  return { ok: true, sku: skus[idx] };
+}
+
 let currentType = 'entrada';
 let currentProductId = null;
 let detailMovFilter = 'todos';
@@ -1458,49 +1515,32 @@ function clearMovForm() {
 
 function saveMovimentacao() {
   const skuId = document.getElementById('mov-product').value;
-  const qty = parseInt(document.getElementById('mov-qty').value);
+  const qty = parseInt(document.getElementById('mov-qty').value, 10);
   if (!skuId) { alert('Selecione um produto.'); return; }
-  if (!qty || qty < 1) { alert('Informe uma quantidade válida.'); return; }
 
   const skus = loadSkus();
-  const idx = skus.findIndex(s => s.id === skuId);
-  if (idx === -1) return;
-
-  if (currentType === 'saida' && skus[idx].qty < qty) {
-    alert(`Estoque insuficiente! Disponível: ${skus[idx].qty} unidades.`); return;
-  }
+  const sku = skus.find(s => s.id === skuId);
+  if (!sku) { alert('Produto não encontrado.'); return; }
 
   const cost = currentType === 'entrada'
-    ? (parseFloat(document.getElementById('mov-cost').value) || skus[idx].cost)
-    : skus[idx].cost;
+    ? (parseFloat(document.getElementById('mov-cost').value) || Number(sku.cost) || 0)
+    : (Number(sku.cost) || 0);
 
-  if (currentType === 'entrada') {
-    // recalculate weighted average cost
-    const prevTotal = skus[idx].qty * skus[idx].cost;
-    const newTotal = qty * cost;
-    skus[idx].qty += qty;
-    skus[idx].cost = skus[idx].qty > 0 ? (prevTotal + newTotal) / skus[idx].qty : cost;
-  } else {
-    skus[idx].qty -= qty;
-  }
-
-  saveSkus(skus);
-
-  const movs = loadMovs();
-  movs.unshift({
-    id: Date.now().toString(),
+  const result = createMovementForSku({
     skuId,
-    skuName: skus[idx].name,
     type: currentType,
     qty,
     cost,
-    note: document.getElementById('mov-note').value.trim(),
-    date: new Date().toISOString()
+    note: document.getElementById('mov-note').value.trim()
   });
-  saveMovs(movs);
+
+  if (!result.ok) { alert(result.message); return; }
 
   closeModal('mov');
-  renderKpis(); renderTable(); renderDashboard();
+  renderKpis();
+  renderTable();
+  renderDashboard();
+  if (currentProductId === skuId) renderProductDetail();
 }
 
 // ─── RENDER TABLE ─────────────────────────────────────────────────────────────
@@ -1592,11 +1632,20 @@ function renderProductDetail() {
   document.getElementById('detail-stock-value-pill').textContent = `${fmt(stockValue)} em estoque`;
   document.getElementById('detail-ads-pill').textContent = `${sku.ads || 0} anúncio${(sku.ads || 0) === 1 ? '' : 's'}`;
   document.getElementById('detail-average-cost').textContent = fmt(sku.cost || 0);
-  document.getElementById('detail-package-cost').textContent = fmt(sku.packageCost || 0);
-  document.getElementById('detail-tax').textContent = sku.tax || 'Padrão da conta';
-  document.getElementById('detail-sync-sub').textContent = `Sincronize automaticamente o estoque entre todos os anúncios vinculados ao SKU ${sku.code}`;
-  document.getElementById('detail-linked-ads').textContent = `${sku.ads || 0} anúncio${(sku.ads || 0) === 1 ? '' : 's'} vinculado${(sku.ads || 0) === 1 ? '' : 's'}`;
-  document.getElementById('detail-sync-switch').classList.toggle('on', !!sku.sync);
+  const optionalDetailValues = {
+    'detail-package-cost': fmt(sku.packageCost || 0),
+    'detail-tax': sku.tax || 'Padrão da conta',
+    'detail-sync-sub': `Sincronize automaticamente o estoque entre todos os anúncios vinculados ao SKU ${sku.code}`,
+    'detail-linked-ads': `${sku.ads || 0} anúncio${(sku.ads || 0) === 1 ? '' : 's'} vinculado${(sku.ads || 0) === 1 ? '' : 's'}`
+  };
+
+  Object.entries(optionalDetailValues).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  });
+
+  const syncSwitch = document.getElementById('detail-sync-switch');
+  if (syncSwitch) syncSwitch.classList.toggle('on', !!sku.sync);
 
   document.getElementById('filter-todos').textContent = `Todos (${movs.length})`;
   document.getElementById('filter-entrada').textContent = `Entradas (${entradas.length})`;
@@ -1624,7 +1673,7 @@ function renderDetailMovements(movs) {
       <div class="mov-badge ${m.type === 'entrada' ? 'in' : 'out'}">${m.type === 'entrada' ? '↧' : '↥'}</div>
       <div class="detail-mov-info">
         <strong>${m.type === 'entrada' ? 'Entrada' : 'Saída'} de ${m.qty} unidade${m.qty === 1 ? '' : 's'}</strong>
-        <span>${m.note || 'Movimentação de estoque'}${m.notes ? ' · ' + m.notes : ''}</span>
+        <span>${fmtDate(m.date)}${m.note ? ' · ' + m.note : ''}${m.notes ? ' · ' + m.notes : ''}${m.qtyAfter !== undefined ? ' · Estoque após: ' + m.qtyAfter + ' un' : ''}</span>
       </div>
       <div style="text-align:right">
         <div class="mov-qty ${m.type === 'entrada' ? 'in' : 'out'}">${m.type === 'entrada' ? '+' : '-'}${m.qty}</div>
@@ -1715,45 +1764,26 @@ function closeProductMovModal() {
 }
 
 function saveDetailMovimentacao() {
-  const qty = parseInt(document.getElementById('prod-mov-qty').value);
-  const cost = parseFloat(document.getElementById('prod-mov-cost').value) || 0;
+  const qty = parseInt(document.getElementById('prod-mov-qty').value, 10);
+  const sku = getCurrentSku();
+  if (!sku) { alert('Produto não encontrado.'); return; }
+
+  const cost = detailMovType === 'entrada'
+    ? (parseFloat(document.getElementById('prod-mov-cost').value) || Number(sku.cost) || 0)
+    : (Number(sku.cost) || 0);
   const reason = document.getElementById('prod-mov-reason').value.trim();
   const notes = document.getElementById('prod-mov-notes').value.trim();
 
-  if (!qty || qty < 1) { alert('Informe uma quantidade válida.'); return; }
-
-  const skus = loadSkus();
-  const idx = skus.findIndex(s => s.id === currentProductId);
-  if (idx === -1) return;
-
-  if (detailMovType === 'saida' && skus[idx].qty < qty) {
-    alert(`Estoque insuficiente! Disponível: ${skus[idx].qty} unidades.`); return;
-  }
-
-  if (detailMovType === 'entrada') {
-    const prevTotal = skus[idx].qty * (skus[idx].cost || 0);
-    const newTotal = qty * cost;
-    skus[idx].qty += qty;
-    skus[idx].cost = skus[idx].qty > 0 ? (prevTotal + newTotal) / skus[idx].qty : cost;
-  } else {
-    skus[idx].qty -= qty;
-  }
-
-  saveSkus(skus);
-
-  const movs = loadMovs();
-  movs.unshift({
-    id: Date.now().toString(),
-    skuId: skus[idx].id,
-    skuName: skus[idx].name,
+  const result = createMovementForSku({
+    skuId: currentProductId,
     type: detailMovType,
     qty,
     cost,
     note: reason || (detailMovType === 'entrada' ? 'Entrada de estoque' : 'Saída de estoque'),
-    notes,
-    date: new Date().toISOString()
+    notes
   });
-  saveMovs(movs);
+
+  if (!result.ok) { alert(result.message); return; }
 
   closeProductMovModal();
   renderProductDetail();
@@ -1852,8 +1882,21 @@ function fmt(v) {
   return 'R$ ' + (v || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 function fmtDate(iso) {
+  if (!iso) return '—';
   const d = new Date(iso);
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  if (Number.isNaN(d.getTime())) return '—';
+
+  const date = d.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+  const time = d.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  return `${date} às ${time}`;
 }
 function fmtOnlyDate(iso) {
   if (!iso) return '—';
