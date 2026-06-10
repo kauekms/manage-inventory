@@ -1198,11 +1198,11 @@
       <div class="detail-type-selector">
         <div class="detail-type-card selected" id="prod-type-entrada" onclick="selectDetailMovType('entrada')">
           <span class="radio-dot"></span>
-          <div style="font-weight:800;color:var(--text)">↧ Entrada</div>
+          <div style="font-weight:800;color:var(--text)">📦 Entrada</div>
         </div>
         <div class="detail-type-card" id="prod-type-saida" onclick="selectDetailMovType('saida')">
           <span class="radio-dot"></span>
-          <div style="font-weight:800;color:var(--text)">↥ Saída</div>
+          <div style="font-weight:800;color:var(--text)">🚚 Saída</div>
         </div>
       </div>
     </div>
@@ -1670,7 +1670,7 @@ function renderDetailMovements(movs) {
   box.classList.add('has-items');
   box.innerHTML = filtered.map(m => `
     <div class="detail-mov-row">
-      <div class="mov-badge ${m.type === 'entrada' ? 'in' : 'out'}">${m.type === 'entrada' ? '↧' : '↥'}</div>
+      <div class="mov-badge ${m.type === 'entrada' ? 'in' : 'out'}">${m.type === 'entrada' ? '📦' : '🚚'}</div>
       <div class="detail-mov-info">
         <strong>${m.type === 'entrada' ? 'Entrada' : 'Saída'} de ${m.qty} unidade${m.qty === 1 ? '' : 's'}</strong>
         <span>${fmtDate(m.date)}${m.note ? ' · ' + m.note : ''}${m.notes ? ' · ' + m.notes : ''}${m.qtyAfter !== undefined ? ' · Estoque após: ' + m.qtyAfter + ' un' : ''}</span>
